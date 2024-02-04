@@ -1,62 +1,32 @@
 package main
 
-import "log"
+import (
+	"log"
+	"net/http"
 
-func (rab *RepositoryRabbitMQ) ConsumeMessages(queueName string) {
-	msgs, err := rab.ch.Consume(
-		queueName,
-		"",
-		true,
-		false,
-		false,
-		false,
-		nil,
-	)
+	"github.com/Vainsberg/rabbitMQ-example/handler"
+	"github.com/Vainsberg/rabbitMQ-example/rabbitMQ"
+)
+
+func main() {
+	conn, err :=
+		rabbitMQ.ConnectToRabbitMQ()
 	if err != nil {
-		log.Fatalf("Failed to register a consumer: %s", err)
+		panic("Error create connection Rabbit MQ")
 	}
 
-	forever := make(chan bool)
-
-	go func() {
-		for d := range msgs {
-			log.Printf("Received a message: %s", d.Body)
-		}
-	}()
-
-	log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
-	<-forever
-}
-
-func PublishMessage(queueName string, body string) error {
-	_, err := ch.QueueDeclare(
-		queueName,
-		false,
-		false,
-		false,
-		false,
-		nil,
-	)
+	ch, err := conn.Channel()
 	if err != nil {
-		log.Fatalf("Failed to declare a queue: %s", err)
-		return err
+		log.Fatalf("failed to open channel. Error: %s", err)
 	}
 
-	err = rab.ch.Publish(
-		"",
-		queueName,
-		false,
-		false,
-		amqp.Publishing{
-			ContentType: "text/plain",
-			Body:        []byte(body),
-		},
-	)
-	if err != nil {
-		log.Fatalf("Failed to publish a message: %s", err)
-		return err
-	}
+	repositoryRabbitMQ := rabbitMQ.NewRepositoryRabbitMQ(ch, conn)
 
-	log.Printf(" [x] Sent %s", body)
-	return nil
+	handler := handler.NewHandler(repositoryRabbitMQ)
+
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		handler.ExampleHanlder(w, r)
+	})
+
+	http.ListenAndServe(":8080", nil)
 }

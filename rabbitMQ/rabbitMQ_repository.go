@@ -1,8 +1,9 @@
-package rabbitmq
+package rabbitMQ
 
 import (
 	"log"
 
+	"github.com/Vainsberg/rabbitMQ-example/service"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -26,14 +27,14 @@ func (rab *RepositoryRabbitMQ) ConsumeMessages(queueName string) {
 		nil,
 	)
 	if err != nil {
-
+		log.Printf("err rab.ch.Consume ", err)
 	}
 
 	forever := make(chan bool)
 
 	go func() {
 		for d := range msgs {
-			log.Printf("Received a message: %s", d.Body)
+			service.ProcessMessage(d.Body)
 		}
 	}()
 
@@ -72,4 +73,16 @@ func (rab *RepositoryRabbitMQ) PublishMessage(queueName string, body string) err
 
 	log.Printf(" [x] Sent %s", body)
 	return nil
+}
+
+func ConnectToRabbitMQ() (*amqp.Connection, error) {
+
+	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	if err != nil {
+		log.Fatalf("Failed to connect to RabbitMQ: %s", err)
+		return nil, err
+	}
+
+	log.Println("Successfully connected to RabbitMQ")
+	return conn, nil
 }
